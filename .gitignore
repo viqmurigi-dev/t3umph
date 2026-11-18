@@ -1,0 +1,4 @@
+paper_news_state.json
+paper_news_trades.csv
+*.log
+calendar_cache.json
