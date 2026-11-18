@@ -1,0 +1,46 @@
+name: paper-trader
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"        # wake every 15 min; gate.py decides if the bot is needed
+  workflow_dispatch:
+    inputs:
+      test_minutes:
+        description: "Test: run the bot for this many minutes right now (leave empty for normal)"
+        required: false
+        default: ""
+
+concurrency:
+  group: paper-trader
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Is the bot needed now?
+        id: gate
+        env:
+          FORCE_MIN: ${{ github.event.inputs.test_minutes }}
+        run: python3 gate.py
+
+      - name: Run the paper trader
+        if: steps.gate.outputs.run == 'true'
+        env:
+          NTFY: ${{ secrets.NTFY_TOPIC }}
+        run: timeout -s INT ${{ steps.gate.outputs.secs }} python3 -u paper_news.py run ntfy="$NTFY" || true
+
+      - name: Save the account (state, trades, logs)
+        if: always() && steps.gate.outputs.run == 'true'
+        run: |
+          git config user.name "paper-trader"
+          git config user.email "paper-trader@users.noreply.github.com"
+          git add -f paper_news_state.json paper_news_trades.csv paper_news_daily.csv paper_news_rebates.csv paper_news_daily.log paper_news_rebates.log paper_news.log calendar_cache.json 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "paper trader state $(date -u +%F_%H:%M)"
+          for i in 1 2 3; do git pull --rebase -q && git push -q && break; sleep 5; done
