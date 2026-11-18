@@ -8,3 +8,27 @@
 2026-11-18 16:24:57 KE | *** ALERT calendar: NEW PPI date(s) online, now included: Thu 13 May 2027, Fri 11 Jun 2027, Thu 15 Jul 2027, Tue 10 Aug 2027, Fri 10 Sep 2027, Fri 15 Oct 2027, Fri 12 Nov 2027, Wed 15 Dec 2027
 2026-11-18 16:24:57 KE | *** ALERT calendar: NEW NFP date(s) online, now included: Fri 07 May 2027, Fri 04 Jun 2027, Fri 02 Jul 2027, Fri 06 Aug 2027, Fri 03 Sep 2027, Fri 08 Oct 2027, Fri 05 Nov 2027, Fri 03 Dec 2027
 2026-11-18 16:25:57 KE | stopped by user (state saved)
+2026-11-18 16:29:35 KE | resumed from /home/runner/work/t3umph/t3umph/paper_news_state.json: equity $100.00
+2026-11-18 16:29:35 KE | PAPER TRADER started - NO ORDERS ARE PLACED. capital $100.00, stake 20% of free cash, orders 5 min before each candle, recovery 10x loss on 1h (cap 100%), US open on. Times are Nairobi time first.
+2026-11-18 16:29:35 KE | upcoming: NFP Fri 04 Dec release Fri 04 Dec 16:30 Nairobi (08:30 ET)
+2026-11-18 16:29:35 KE | upcoming: FOMC Wed 09 Dec release Wed 09 Dec 22:00 Nairobi (14:00 ET)
+2026-11-18 16:29:35 KE | upcoming: CPI Thu 10 Dec release Thu 10 Dec 16:30 Nairobi (08:30 ET)
+2026-11-18 16:29:35 KE | upcoming: PPI Tue 15 Dec release Tue 15 Dec 16:30 Nairobi (08:30 ET)
+2026-11-18 16:29:35 KE | alive: equity $100.00, 0 trades open, 0 trades so far
+2026-11-18 16:29:36 KE | *** ALERT calendar: NEW CPI date(s) online, now included: Wed 12 May 2027, Thu 10 Jun 2027, Wed 14 Jul 2027, Wed 11 Aug 2027, Tue 14 Sep 2027, Thu 14 Oct 2027, Wed 10 Nov 2027, Fri 10 Dec 2027
+2026-11-18 16:29:36 KE | *** ALERT calendar: NEW PPI date(s) online, now included: Thu 13 May 2027, Fri 11 Jun 2027, Thu 15 Jul 2027, Tue 10 Aug 2027, Fri 10 Sep 2027, Fri 15 Oct 2027, Fri 12 Nov 2027, Wed 15 Dec 2027
+2026-11-18 16:29:36 KE | *** ALERT calendar: NEW NFP date(s) online, now included: Fri 07 May 2027, Fri 04 Jun 2027, Fri 02 Jul 2027, Fri 06 Aug 2027, Fri 03 Sep 2027, Fri 08 Oct 2027, Fri 05 Nov 2027, Fri 03 Dec 2027
+2026-11-18 16:39:35 KE | alive: equity $100.00, 0 trades open, 0 trades so far
+2026-11-18 16:49:35 KE | alive: equity $100.00, 0 trades open, 0 trades so far
+2026-11-18 16:59:36 KE | alive: equity $100.00, 0 trades open, 0 trades so far
+2026-11-18 17:05:01 KE | MISSED 1h US open 18 Nov 2026 candle Wed 18 Nov 17:00 Nairobi (09:00 ET): missed: the candle was already running (bot was off, or the market was not found in time) -> will be back-filled from the real trades once the candle is over
+2026-11-18 17:09:35 KE | alive: equity $100.00, 0 trades open, 0 trades so far
+2026-11-18 17:19:36 KE | alive: equity $100.00, 0 trades open, 0 trades so far
+2026-11-18 17:29:36 KE | alive: equity $100.00, 0 trades open, 0 trades so far
+2026-11-18 17:39:36 KE | alive: equity $100.00, 0 trades open, 0 trades so far
+2026-11-18 17:49:36 KE | alive: equity $100.00, 0 trades open, 0 trades so far
+2026-11-18 17:59:36 KE | alive: equity $100.00, 0 trades open, 0 trades so far
+2026-11-18 18:02:31 KE | BACKFILL #1 1h US open 18 Nov 2026 (scheduled) candle Wed 18 Nov 17:00 Nairobi (09:00 ET): stake $20.00 (20% of free cash); real trades: Up reached 55c never, Down never -> NO_FILL
+2026-11-18 18:02:31 KE | CLOSE #1 1h US open 18 Nov 2026: NO_FILL +0.00 -> free cash $100.00, equity $100.00
+2026-11-18 18:02:31 KE | *** BACK-FILL: 1 candles missed while the bot was off were rebuilt from the real trades: PnL +0.00; equity $100.00
+2026-11-18 18:03:00 KE | stopped by user (state saved)
