@@ -46,10 +46,11 @@ To start over with a fresh $100: stop the bot and delete paper_news_state.json (
 LIMITS: a paper fill is not a real fill: no queue position, no partial fills (the bid size at the touch is logged in size_ok), polling every 2 seconds can miss a very brief touch.
 A candle that follows an unresolved one waits up to 3 minutes for the result (needed for the recovery stake), then trades late (logged in late_s).
 
-EARLY ORDERS + SLEEP (early=1 default; rest=1 is for GitHub Actions, wake=900):
+EARLY ORDERS + SLEEP (early=1 default; rest=1 is for GitHub Actions, wake=6000 s = 100 min):
   early: when a candle has completed its hedge (both 55c legs sold) and the NEXT hourly candle of the same news block is a normal scheduled one, its orders go in at once,
          not 5 minutes before the open. If the candle before did not hedge (or one leg is sold and the result is awaited) the usual 5-minute / wait-for-result rule applies.
-  rest:  the bot exits after the orders of the next candle are in and nothing is running, and the workflow starts it again 15 minutes before that candle.
+  rest:  between candles the bot simply stays in its run and waits (cheap). Only when the next thing to do is more than wake+10 min away does it exit, and the workflow starts it again `wake` seconds before.
+         (GitHub's schedule can be late or run only about hourly, so the restart is early enough to survive that.)
          Open trades keep their orders in the saved state; on waking their fills are re-checked from the real trades (so a 55c sell that filled while it slept is found).
   Market names tried: bitcoin-up-or-down-<month>-<day>-<year>-<hour>-et (1h), btc-updown-4h-<start epoch>, btc-updown-1d-<start epoch> (and older name styles);
   a market is accepted only if its end date matches the candle (a name can repeat from one year to the next).
@@ -638,8 +639,8 @@ class Engine:
                 return None                                           # a calendar alert is due: stay awake
             if a > now:
                 nxt = a if nxt is None else min(nxt, a)
-        if nxt is None or nxt - now < 20 * 60:
-            return None
+        if nxt is None or nxt - now < wake + 600:
+            return None                                           # the next thing is close: just stay in the run and wait (no start-up risk)
         return int(nxt)
 
     def step(self, now):
@@ -1243,7 +1244,7 @@ def cfg_from(args):
             "minstake": float(args.get("minstake", 5)), "open_on": args.get("open", "1") != "0", "recovery": args.get("recovery", "1") != "0",
             "ntfy": args.get("ntfy", ""), "recov_tfs": tuple(x for x in args.get("recov_tfs", "1h").split(",") if x),
             "lead": int(args.get("lead", 300)), "base": "total" if args.get("base", "free") == "total" else "free", "rebate": float(args.get("rebate", 0.20)), "rebate_hour": int(args.get("rebate_hour", 0)),
-            "backfill": args.get("backfill", "1") != "0", "tradealerts": args.get("tradealerts", "1") != "0", "early": args.get("early", "1") != "0", "rest": args.get("rest", "0") == "1", "wake": int(args.get("wake", 900)), "bf_days": int(args.get("bf_days", 5)), "bf_delay": int(args.get("bf_delay", 150))}
+            "backfill": args.get("backfill", "1") != "0", "tradealerts": args.get("tradealerts", "1") != "0", "early": args.get("early", "1") != "0", "rest": args.get("rest", "0") == "1", "wake": int(args.get("wake", 6000)), "bf_days": int(args.get("bf_days", 5)), "bf_delay": int(args.get("bf_delay", 150))}
 
 
 def logger():
@@ -1365,7 +1366,7 @@ def cmd_run(args):
             if w:
                 eng.st["wake_at"], eng.st["last_seen"] = w, int(time.time())
                 eng.save()
-                msg = f"SLEEP: nothing to watch until {stamp(w)} (15 min before the next candle). Open orders stay in the state; their fills are re-checked from the real trades on waking. Equity ${eng.equity:.2f}"
+                msg = f"SLEEP: nothing to watch for a long while; the bot restarts at about {stamp(w)}, {cfg['wake'] // 60} min before the next thing it needs to do. Open orders stay in the state; their fills are re-checked from the real trades on waking. Equity ${eng.equity:.2f}"
                 notify(msg)
                 stop.set()
                 notify.flush(20)

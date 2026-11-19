@@ -4,7 +4,7 @@ import json, os, sys, time
 from datetime import timedelta
 import paper_news as pn
 
-LEAD, LOOK, GAP, CAP = 300, 1200, 1800, int(5.6 * 3600)
+LEAD, LOOK, GAP, CAP = 300, 6000, 1800, int(5.6 * 3600)      # LOOK: start the bot when a trade is due within 100 min (GitHub may wake us only hourly, and late)
 
 
 def windows(now):
@@ -14,7 +14,7 @@ def windows(now):
     for c in pn.plan_chains(cal, d - timedelta(days=1), d + timedelta(days=1), True):
         for s, e in c.slots:
             if c.tf == "1h":
-                w.append((s - LEAD - 60, e + 180))
+                w.append((s - LEAD - 60, e + 900))          # 15 min after the candle: time for the result (winner) to be published and the trade to settle
             else:                                     # 4h / daily: orders at the start, and the settlement at the end
                 w.append((s - LEAD - 60, s + 420))
                 w.append((e, e + 300))
