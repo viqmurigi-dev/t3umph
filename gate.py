@@ -39,11 +39,27 @@ def report_due(now):
         return False
 
 
+def wake_due(now):
+    """the time the bot asked to be woken at (candle, calendar alert, release check) has come, and the bot has not started yet"""
+    try:
+        w = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "paper_news_state.json"))).get("wake_at")
+        return bool(w) and 0 <= now - int(w) < 7200
+    except Exception:
+        return False
+
+
 def decide(now):
     if report_due(now):
         return True, 240
     if asleep(now):
         return False, 0
+    run, secs = candle_windows(now)
+    if wake_due(now):
+        return True, max(secs, 900)
+    return run, secs
+
+
+def candle_windows(now):
     ws = windows(now)
     cur = None
     for s, e in ws:

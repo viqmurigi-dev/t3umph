@@ -69,6 +69,7 @@ import re
 import sys
 import threading
 import time
+import zlib
 from datetime import date, datetime, timedelta, timezone
 from html import unescape
 from zoneinfo import ZoneInfo
@@ -632,6 +633,11 @@ class Engine:
                 if owed and s["end"] > now:
                     t0 = s["start"] - wake
                     nxt = t0 if nxt is None else min(nxt, t0)
+        for a, b in alert_windows(self.cal, now):
+            if a <= now < b:
+                return None                                           # a calendar alert is due: stay awake
+            if a > now:
+                nxt = a if nxt is None else min(nxt, a)
         if nxt is None or nxt - now < 20 * 60:
             return None
         return int(nxt)
@@ -1144,18 +1150,40 @@ class Engine:
         return msgs
 
 
+def alert_windows(cal, now):
+    """times the bot must be awake for the calendar alerts: 60 min before the first orders, the release itself, the 'report published?' check right after and 30 min after the release"""
+    out = []
+    today = et_date(now)
+    for d, k in cal.events():
+        if abs((d - today).days) > 3:
+            continue
+        ch = event_chains(k, d)[0]
+        to = first_start(ch) - 300
+        rh, rm = REL_TIME[k]
+        tr = et_epoch(d, rh, rm)
+        out += [(to - 3600 - 120, to - 3600 + 420), (tr - 150, tr + 300)]
+        if k != "FOMC":
+            out += [(tr + 60, tr + 420), (tr + 1800, tr + 2100)]
+    return sorted(out)
+
+
 # ------------------------------------------------------------------------------------------------ the news listener (network part)
 class Listener:
     def __init__(self, cal, fetch, notify, state, every=6 * 3600):
         self.cal, self.fetch, self.notify, self.state, self.every = cal, fetch, notify, state, every
-        self.last_refresh = 0
+        self.last_refresh = int(state.get("cal_refresh") or 0)         # remembered across restarts (the bot sleeps and wakes)
         self.confirmed = set()
 
     def tick(self, now):
         today = et_date(now)
         if now - self.last_refresh >= self.every:
             self.last_refresh = now
+            self.state["cal_refresh"] = int(now)
             for m in self.cal.refresh(self.fetch, today):
+                key = f"cal-{today}-{zlib.crc32(m.encode()) % 10**8}"
+                if key in self.state["alerts"]:
+                    continue                                              # the same calendar message is sent once a day, not on every wake-up
+                self.state["alerts"].append(key)
                 self.notify(m)
         for d, kind in self.cal.events():
             if kind == "FOMC" or d != today:
@@ -1188,11 +1216,23 @@ def make_notifier(log, topic):
             log(f"(phone alert not delivered: {type(e).__name__})")
             return False
 
+    threads = []
+
     def notify(msg):
         log(f"*** {msg}")
         if topic:
-            threading.Thread(target=post, args=(msg,), daemon=True).start()      # never hold up the trading loop
+            th = threading.Thread(target=post, args=(msg,), daemon=True)         # never hold up the trading loop
+            th.start()
+            threads.append(th)
+            del threads[:-50]
+
+    def flush(timeout=15):
+        """before the program exits (sleep): wait until the phone alerts have really been sent"""
+        end = time.time() + timeout
+        for th in list(threads):
+            th.join(max(0.1, end - time.time()))
     notify.post = post
+    notify.flush = flush
     return notify
 
 
@@ -1279,6 +1319,7 @@ def cmd_run(args):
             state = None
     eng = Engine(cfg, net, cal, state, log)
     eng.st["wake_at"] = None
+    eng.dirty = True                                              # saved at once, so a stale wake-up time never stays in the file
     notify = make_notifier(log, cfg["ntfy"])
     eng.notify = notify
     lst = Listener(cal, net.fetch_page, notify, eng.st)
@@ -1289,12 +1330,16 @@ def cmd_run(args):
         log(f"upcoming: {k} {d:%a %d %b} release {stamp(et_epoch(d, *REL_TIME[k]))}")
     stop = threading.Event()
 
+    first_tick = threading.Event()
+    t_start = time.time()
+
     def bg():
         while not stop.is_set():
             try:
                 lst.tick(int(time.time()))
             except Exception as e:
                 log(f"listener error: {e}")
+            first_tick.set()
             stop.wait(30)
 
     th = threading.Thread(target=bg, daemon=True)
@@ -1315,13 +1360,15 @@ def cmd_run(args):
             except Exception as e:
                 w = None
                 log(f"sleep check error: {type(e).__name__}: {e}")
+            if w and not (first_tick.is_set() or time.time() - t_start > 90):
+                w = None                                              # the calendar check of this wake-up has not finished yet
             if w:
                 eng.st["wake_at"], eng.st["last_seen"] = w, int(time.time())
                 eng.save()
                 msg = f"SLEEP: nothing to watch until {stamp(w)} (15 min before the next candle). Open orders stay in the state; their fills are re-checked from the real trades on waking. Equity ${eng.equity:.2f}"
-                log(msg)
                 notify(msg)
                 stop.set()
+                notify.flush(20)
                 return
             if n % 300 == 1:
                 live = sum(1 for s in eng.st["slots"].values() if s["status"] == "open")
@@ -1331,6 +1378,7 @@ def cmd_run(args):
         stop.set()
         eng.save()
         log("stopped by user (state saved)")
+        notify.flush(10)
 
 
 def cmd_notifytest(args):
