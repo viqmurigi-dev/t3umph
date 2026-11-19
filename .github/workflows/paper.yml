@@ -16,6 +16,7 @@ concurrency:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   run:
@@ -31,10 +32,14 @@ jobs:
         run: python3 gate.py
 
       - name: Run the paper trader
+        id: bot
         if: steps.gate.outputs.run == 'true'
         env:
           NTFY: ${{ secrets.NTFY_TOPIC }}
-        run: timeout -s INT ${{ steps.gate.outputs.secs }} python3 -u paper_news.py run rest=1 ntfy="$NTFY" || true
+        run: |
+          rc=0
+          timeout -s INT ${{ steps.gate.outputs.secs }} python3 -u paper_news.py run rest=1 ntfy="$NTFY" || rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
 
       - name: Save the account (state, trades, logs)
         if: always() && steps.gate.outputs.run == 'true'
@@ -44,4 +49,10 @@ jobs:
           git add -f paper_news_state.json paper_news_trades.csv paper_news_daily.csv paper_news_rebates.csv paper_news_daily.log paper_news_rebates.log paper_news.log calendar_cache.json 2>/dev/null || true
           git diff --cached --quiet || git commit -m "paper trader state $(date -u +%F_%H:%M)"
           for i in 1 2 3; do git pull --rebase --autostash -q && git push -q && break; sleep 5; done
+
+      - name: Carry on in a new run when this one hit its time limit
+        if: always() && steps.gate.outputs.run == 'true' && steps.bot.outputs.rc == '124' && github.event.inputs.test_minutes == ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run paper.yml --ref "${{ github.ref_name }}"
 
