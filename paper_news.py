@@ -46,6 +46,14 @@ To start over with a fresh $100: stop the bot and delete paper_news_state.json (
 LIMITS: a paper fill is not a real fill: no queue position, no partial fills (the bid size at the touch is logged in size_ok), polling every 2 seconds can miss a very brief touch.
 A candle that follows an unresolved one waits up to 3 minutes for the result (needed for the recovery stake), then trades late (logged in late_s).
 
+EARLY ORDERS + SLEEP (early=1 default; rest=1 is for GitHub Actions, wake=900):
+  early: when a candle has completed its hedge (both 55c legs sold) and the NEXT hourly candle of the same news block is a normal scheduled one, its orders go in at once,
+         not 5 minutes before the open. If the candle before did not hedge (or one leg is sold and the result is awaited) the usual 5-minute / wait-for-result rule applies.
+  rest:  the bot exits after the orders of the next candle are in and nothing is running, and the workflow starts it again 15 minutes before that candle.
+         Open trades keep their orders in the saved state; on waking their fills are re-checked from the real trades (so a 55c sell that filled while it slept is found).
+  Market names tried: bitcoin-up-or-down-<month>-<day>-<year>-<hour>-et (1h), btc-updown-4h-<start epoch>, btc-updown-1d-<start epoch> (and older name styles);
+  a market is accepted only if its end date matches the candle (a name can repeat from one year to the next).
+
 BACK-FILL (on by default; backfill=0 turns it off, bf_days=5 how far back, default 5 days):
   If the computer was off when a scheduled candle ran, the bot rebuilds it on the next start from Polymarket's REAL executed trades:
   a side counts as sold when someone bought it at 55c or more after the orders would have gone in. Stakes, recovery (10x on the next candle)
@@ -328,11 +336,17 @@ class Net:
         self.cache = {}
 
     def jget(self, url, params=None):
-        try:
-            r = self.rq.get(url, params=params, timeout=15)
-            return r.json() if r.ok else None
-        except Exception:
-            return None
+        for i in range(3):
+            try:
+                r = self.rq.get(url, params=params, timeout=15)
+                if r.ok:
+                    return r.json()
+                if r.status_code != 429 and r.status_code < 500:
+                    return None                                   # 404 etc: the thing does not exist, no point asking again
+            except Exception:
+                pass
+            time.sleep(1.0 + i)                                   # network hiccup / rate limit: try again
+        return None
 
     @staticmethod
     def slugs(tf, start):
@@ -342,10 +356,10 @@ class Net:
             et = datetime.fromtimestamp(start, UTC).astimezone(ET)
             h12 = f"{et.hour % 12 or 12}{'am' if et.hour < 12 else 'pm'}"
             mon = et.strftime("%B").lower()
-            return [f"bitcoin-up-or-down-{mon}-{et.day}-{et.year}-{h12}-et", f"bitcoin-up-or-down-{mon}-{et.day}-{h12}-et"]
-        et = et_date(start + 86400 + 3600)        # the daily market is named after the day it ends (noon ET)
+            return [f"bitcoin-up-or-down-{mon}-{et.day}-{et.year}-{h12}-et", f"btc-updown-1h-{start}", f"bitcoin-up-or-down-{mon}-{et.day}-{h12}-et"]
+        et = et_date(start + 86400 + 3600)        # older daily markets are named after the day they end (noon ET)
         mon = et.strftime("%B").lower()
-        return [f"bitcoin-up-or-down-on-{mon}-{et.day}-{et.year}", f"bitcoin-up-or-down-on-{mon}-{et.day}"]
+        return [f"btc-updown-1d-{start}", f"btc-updown-1d-{start + 86400}", f"bitcoin-up-or-down-on-{mon}-{et.day}-{et.year}", f"bitcoin-up-or-down-on-{mon}-{et.day}"]
 
     @staticmethod
     def parse(ev):
@@ -371,12 +385,26 @@ class Net:
     def event(self, tf, start):
         key = (tf, start)
         order = ([self.cache[key]] if key in self.cache else []) + self.slugs(tf, start)
+        length = {"1h": 3600, "4h": 14400, "1d": 86400}[tf]
         for sl in order:
             ev = self.jget(f"{GAMMA}/events/slug/{sl}")
-            if ev:
+            if ev and self.right_time(ev, start + length):
                 self.cache[key] = sl
                 return ev
         return None
+
+    @staticmethod
+    def right_time(ev, end):
+        """a market name can repeat from one year to the next (e.g. ...-november-18-9am-et): accept the event only if its end date is the end of THIS candle (within 3 h); no date given = accept"""
+        try:
+            ds = [ev.get("endDate")] + [m.get("endDate") for m in ev.get("markets", [])]
+            ds = [x for x in ds if x]
+            if not ds:
+                return True
+            got = [datetime.fromisoformat(x.replace("Z", "+00:00")).timestamp() for x in ds]
+            return any(abs(g - end) <= 3 * 3600 for g in got)
+        except Exception:
+            return True
 
     def load_market(self, tf, start):
         return self.parse(self.event(tf, start))[0]
@@ -489,7 +517,7 @@ class Engine:
         self.state_path, self.csv_path = state_path, csv_path
         c = cfg["capital"]
         self.st = state or {"cash": c, "locked": 0.0, "peak": c, "chains": {}, "slots": {}, "slotmap": {}, "alerts": [], "trades": 0, "start_capital": c}
-        for k, v in (("rebates", []), ("takerfees", []), ("closed", []), ("eq_prev", None), ("rebate_unpaid", 0.0), ("rebate_paid", 0.0), ("next_cut", None), ("period_start", None), ("first_start", None)):
+        for k, v in (("rebates", []), ("takerfees", []), ("closed", []), ("eq_prev", None), ("rebate_unpaid", 0.0), ("rebate_paid", 0.0), ("next_cut", None), ("period_start", None), ("first_start", None), ("wake_at", None), ("last_seen", None)):
             self.st.setdefault(k, v)
         d = os.path.dirname(os.path.abspath(csv_path))
         self.reb_csv, self.reb_log = os.path.join(d, "paper_news_rebates.csv"), os.path.join(d, "paper_news_rebates.log")
@@ -539,8 +567,81 @@ class Engine:
         return self.st["slots"][ch["slots"][i - 1]] if i > 0 else None
 
     # ---- one tick
+    def early_ok(self, s, now):
+        """the candle before has just completed its hedge (both legs sold, closed) and this candle is a normal scheduled one of the same chain: its orders can go in NOW instead of 5 minutes before the open"""
+        if not self.cfg.get("early", True) or s["status"] != "future" or not s["sched"] or now >= s["start"]:
+            return False
+        p = self.prev_slot(s)
+        return bool(p is not None and p["end"] == s["start"] and p["status"] == "done" and p.get("pos") and p["pos"].get("res") == "hedged" and not p["pos"].get("backfill"))
+
+    def reconcile(self, now, since):
+        """the bot was not watching (asleep, or off): re-judge the open trades from Polymarket's real trades. A resting 55c sell fills when somebody buys that side at 55c or more."""
+        cfg = self.cfg
+        for sid, s in sorted(self.st["slots"].items(), key=lambda kv: kv[1]["start"]):
+            pos = s.get("pos")
+            if s["status"] != "open" or not pos or pos.get("logged") or pos.get("backfill"):
+                continue
+            unsold = [l for l in ("up", "down") if pos["v"]["bid"][l] is None]
+            if not unsold:
+                continue
+            tr = self.net.trades(s["tf"], s["start"])
+            if not tr:
+                continue
+            lo, hi = max(pos["entry_ts"], since), min(now, s["end"])
+            N = pos["stake"]
+            ps = self.st.get("period_start")
+            for leg in unsold:
+                ok = [(ts, sz) for ts, sd, px, sz in tr if sd == leg and lo <= ts < hi and px >= TARGET - 1e-9]
+                if not ok:
+                    continue
+                ts0, shares = min(o[0] for o in ok), sum(o[1] for o in ok)
+                fe = N * FEE * TARGET * (1 - TARGET)
+                rb = cfg["rebate"] * fe
+                pos["v"]["bid"][leg] = {"p": TARGET, "ts": int(ts0), "fee": 0.0, "crossed": False, "size": round(shares, 2), "rebate": round(rb, 5)}
+                if pos["v"]["mid"][leg] is None:
+                    pos["v"]["mid"][leg] = {"p": TARGET, "ts": int(ts0), "fee": 0.0, "crossed": False, "size": None}
+                if shares < N:
+                    pos["size_ok"] = False
+                self.st["rebates"].append([int(ts0 if (ps is not None and ts0 >= ps) else now), pos["n"], leg, N, round(fe, 5), round(rb, 5)])
+                self.log(f"   #{pos['n']} {leg.upper()} leg sold at 0.55 while the bot was asleep (real trades) {stamp(ts0)}")
+                self.ping(f"#{pos['n']} {leg.upper()} leg sold at 0.55 (found after waking) {stamp(ts0)}")
+                self.dirty = True
+            if all(pos["v"]["bid"].values()) and s["status"] == "open":
+                self.maybe_close_early(s, now)
+
+    def next_wake(self, now):
+        """rest=1: None while the bot must stay awake, else the time to wake up (`wake` seconds, default 15 min, before the next candle that needs it).
+        Awake: a missed candle is waiting to be rebuilt, an hourly trade is running (or opens within `wake`), or an order can go in now."""
+        cfg = self.cfg
+        if not cfg.get("rest"):
+            return None
+        slots = self.st["slots"]
+        wake = cfg.get("wake", 900)
+        nxt = None
+        for s in slots.values():
+            if s["status"] == "missed":
+                return None
+            if s["status"] == "open" and s["tf"] == "1h" and s["pos"] and not s["pos"].get("logged"):
+                if s["start"] - wake <= now:
+                    return None
+                nxt = s["start"] - wake if nxt is None else min(nxt, s["start"] - wake)
+            if s["status"] == "future":
+                owed = s["sched"] or self.pend_for(self.st["chains"][s["chain"]], f"{s['tf']}|{s['start']}") > 1e-9      # a recovery candle after a loss is owed too
+                if owed and (s["start"] - cfg["lead"] <= now or self.early_ok(s, now)):
+                    return None
+                if owed and s["end"] > now:
+                    t0 = s["start"] - wake
+                    nxt = t0 if nxt is None else min(nxt, t0)
+        if nxt is None or nxt - now < 20 * 60:
+            return None
+        return int(nxt)
+
     def step(self, now):
         self.ensure(now)
+        ls = self.st.get("last_seen")
+        if ls and now - ls > 90:
+            self.reconcile(now, ls)
+        self.st["last_seen"] = int(now)
         slots = self.st["slots"]
         order = sorted((s["start"], sid) for sid, s in slots.items())
         # which tokens do we need books for?
@@ -549,7 +650,7 @@ class Engine:
             s = slots[sid]
             if s["status"] == "open" and now < s["end"]:
                 need |= set(s["pos"]["tok"].values())
-            elif s["status"] == "future" and s["start"] - self.cfg["lead"] - 30 <= now < s["start"] + self.cfg["maxlate"]:
+            elif s["status"] == "future" and (s["start"] - self.cfg["lead"] - 30 <= now < s["start"] + self.cfg["maxlate"] or self.early_ok(s, now)):
                 if s["tok"] is None and now >= s["next_try"]:
                     s["next_try"] = now + 8
                     s["tok"] = self.net.load_market(s["tf"], s["start"])
@@ -557,9 +658,12 @@ class Engine:
                 if s["tok"]:
                     need |= set(s["tok"].values())
         self.books = self.net.books(need) if need else {}
+        late_future = any(x["status"] == "missed" or (x["status"] == "future" and now > x["start"] + self.cfg["maxlate"]) for x in slots.values())
+        if not self.cfg.get("backfill") or not late_future:
+            self.settle_due(now, order)                              # ended trades free their cash before new orders are sized
         for _, sid in order:
             s = slots[sid]
-            if s["status"] == "future" and s["start"] - self.cfg["lead"] <= now:
+            if s["status"] == "future" and (s["start"] - self.cfg["lead"] <= now or self.early_ok(s, now)):
                 self.try_enter(sid, s, now)
         for _, sid in order:
             s = slots[sid]
@@ -567,6 +671,13 @@ class Engine:
                 self.update_fills(s["pos"], now, first=False)
                 self.maybe_close_early(s, now)
         self.backfill(now)                                          # rebuild missed candles (in time order) before today's settlements, so cash is as it would have been
+        self.settle_due(now, order)
+        self.rebate_report(now)
+        if self.dirty:
+            self.save()
+
+    def settle_due(self, now, order):
+        slots = self.st["slots"]
         miss = [x["start"] for x in slots.values() if x["status"] == "missed"] if self.cfg.get("backfill") else []
         for _, sid in order:
             s = slots[sid]
@@ -574,13 +685,17 @@ class Engine:
                 if miss and not s["pos"].get("backfill") and min(miss) - self.cfg["lead"] < s["end"]:
                     continue                                         # candles still to be rebuilt entered before this trade ended: settle it in order, after them
                 self.settle(s, now)
-        self.rebate_report(now)
-        if self.dirty:
-            self.save()
 
     @staticmethod
     def pend_for(ch, sid):
         return ch["pend"] if ch.get("pend_for") == sid else 0.0
+
+    def why_wait(self, sid, now, msg):
+        """say (at most once a minute) why a candle that is due has not been entered yet"""
+        w = self.__dict__.setdefault("_wl", {})
+        if now - w.get(sid, 0) >= 60:
+            w[sid] = now
+            self.log("WAITING " + msg)
 
     def ping(self, msg):
         """per-trade phone alert (orders placed, leg sold, trade closed); never raises"""
@@ -635,9 +750,11 @@ class Engine:
             return self.mark_missed(s, "missed: the candle was already running (bot was off, or the market was not found in time)", now)
         tok = s["tok"]
         if not tok:
+            self.why_wait(sid, now, f"{s['tf']} {s['label']}: the market cannot be found on Polymarket yet (Gamma API gave nothing)")
             return
         bk = {k: self.books.get(t) for k, t in tok.items()}
         if not (bk["up"] and bk["down"]):
+            self.why_wait(sid, now, f"{s['tf']} {s['label']}: market found but the order books cannot be read (CLOB API gave nothing for Up/Down)")
             return
         stake, capped, pend, base, basename, free = self.size_stake(ch, sid)
         frac, cap = cfg["stake"], cfg["cap"]
@@ -748,6 +865,7 @@ class Engine:
                 self.skip(s, "back-fill: no trade data could be read for this candle")
                 return "skipped"
             return "wait"
+        mx = {sd: max([px for ts, s2, px, sz in tr if s2 == sd and et <= ts < s["end"]] or [0]) for sd in ("up", "down")}
         legs = {}
         shares = {}
         for side in ("up", "down"):
@@ -790,7 +908,7 @@ class Engine:
         acct = int(ct if (ps is not None and ct >= ps) else now)
         role = "scheduled" if s["sched"] else "recovery"
         self.log(f"BACKFILL #{pos['n']} {s['tf']} {s['label']} ({role}) candle {stamp(s['start'])}: stake ${stake:.2f}" + (f" (10x pending loss ${pend:.2f})" if pend > 1e-9 else f" ({cfg['stake']:.0%} of {basename})")
-                 + f"; real trades: Up reached 55c {'at ' + stamp(legs['up']) if legs['up'] else 'never'}, Down {'at ' + stamp(legs['down']) if legs['down'] else 'never'} -> {res.upper()}")
+                 + f"; read {len(tr)} real trades (first {min(x[0] for x in tr) - s['start']:+d}s, last {max(x[0] for x in tr) - s['start']:+d}s vs the open), highest price after the order time: Up {mx['up']:.2f}, Down {mx['down']:.2f}; Up reached 55c {'at ' + stamp(legs['up']) if legs['up'] else 'never'}, Down {'at ' + stamp(legs['down']) if legs['down'] else 'never'} -> {res.upper()}")
         heapq.heappush(heap, (ct, seq, sid, pnl, res, acct))
         self.dirty = True
         return "done"
@@ -828,6 +946,11 @@ class Engine:
         if s["status"] == "open" and all(pos["v"]["bid"].values()):
             pnl, res = legs_pnl(pos, "bid", None)
             self.close(s, pnl, res, now)
+            if all(pos["v"]["mid"].values()):                       # hedged under both rules: nothing left to wait for, so write the row now (the bot may sleep before the candle ends)
+                pm, rm = legs_pnl(pos, "mid", None)
+                self.write_row(s, pm, rm)
+                pos["logged"] = True
+                self.dirty = True
 
     def close(self, s, pnl, res, now):
         pos = s["pos"]
@@ -853,7 +976,7 @@ class Engine:
         self.st["peak"] = max(self.st["peak"], self.equity)
         s["status"] = "done"
         pos["res"], pos["pnl"], pos["eq1"] = res, round(pnl, 4), round(self.equity, 4)
-        self.st["closed"].append([int(now), pos["n"], s["stream"], s["tf"], res, round(pnl, 4)])
+        self.st["closed"].append([int(now), pos["n"], s["stream"], s["tf"], res, round(pnl, 4), 1 if pos.get("backfill") else 0])
         self.dirty = True
         if not pos.get("backfill"):
             self.ping(f"RESULT #{pos['n']} {s['tf']} {s['label']}: {res.upper()} {pnl:+.2f}; equity ${self.equity:.2f}"
@@ -966,7 +1089,9 @@ class Engine:
         pend = sum(v["pend"] for v in st["chains"].values() if v["pend"] > 0)
         nopen = sum(1 for sl in st["slots"].values() if sl["status"] == "open")
         total = pnl + rb
-        line = (f"DAILY PNL, 24h to {hm_ke(b)} Nairobi: {len(cl)} trades closed ({cnt('hedged')} hedged, {cnt('miss_lose')} lost leg, {cnt('miss_win')} one leg + win, {cnt('no_fill')} no fill); "
+        bf = [c for c in cl if len(c) > 6 and c[6]]
+        bfs = f" [{len(bf)} of them back-filled from the real trades while the bot was off: PnL {sum(c[5] for c in bf):+.2f}]" if bf else ""
+        line = (f"DAILY PNL, 24h to {hm_ke(b)} Nairobi: {len(cl)} trades closed ({cnt('hedged')} hedged, {cnt('miss_lose')} lost leg, {cnt('miss_win')} one leg + win, {cnt('no_fill')} no fill){bfs}; "
                 f"trade PnL {pnl:+.2f} (news {news:+.2f}, US open {opn:+.2f}; taker fees {tfee:.2f} already deducted) + maker rebate {rb:+.2f} = day total {total:+.2f}. "
                 f"Equity ${eq:.2f} (free cash ${st['cash']:.2f}, in {nopen} open trades ${st['locked']:.2f}), {(eq / start - 1) * 100:+.1f}% since start; recovery owed ${pend:.2f}")
         self.log("*** " + line)
@@ -1078,7 +1203,7 @@ def cfg_from(args):
             "minstake": float(args.get("minstake", 5)), "open_on": args.get("open", "1") != "0", "recovery": args.get("recovery", "1") != "0",
             "ntfy": args.get("ntfy", ""), "recov_tfs": tuple(x for x in args.get("recov_tfs", "1h").split(",") if x),
             "lead": int(args.get("lead", 300)), "base": "total" if args.get("base", "free") == "total" else "free", "rebate": float(args.get("rebate", 0.20)), "rebate_hour": int(args.get("rebate_hour", 0)),
-            "backfill": args.get("backfill", "1") != "0", "tradealerts": args.get("tradealerts", "1") != "0", "bf_days": int(args.get("bf_days", 5)), "bf_delay": int(args.get("bf_delay", 150))}
+            "backfill": args.get("backfill", "1") != "0", "tradealerts": args.get("tradealerts", "1") != "0", "early": args.get("early", "1") != "0", "rest": args.get("rest", "0") == "1", "wake": int(args.get("wake", 900)), "bf_days": int(args.get("bf_days", 5)), "bf_delay": int(args.get("bf_delay", 150))}
 
 
 def logger():
@@ -1153,6 +1278,7 @@ def cmd_run(args):
         except Exception:
             state = None
     eng = Engine(cfg, net, cal, state, log)
+    eng.st["wake_at"] = None
     notify = make_notifier(log, cfg["ntfy"])
     eng.notify = notify
     lst = Listener(cal, net.fetch_page, notify, eng.st)
@@ -1184,6 +1310,19 @@ def cmd_run(args):
             except Exception as e:
                 log(f"loop error: {type(e).__name__}: {e}")
             n += 1
+            try:
+                w = eng.next_wake(int(t0))
+            except Exception as e:
+                w = None
+                log(f"sleep check error: {type(e).__name__}: {e}")
+            if w:
+                eng.st["wake_at"], eng.st["last_seen"] = w, int(time.time())
+                eng.save()
+                msg = f"SLEEP: nothing to watch until {stamp(w)} (15 min before the next candle). Open orders stay in the state; their fills are re-checked from the real trades on waking. Equity ${eng.equity:.2f}"
+                log(msg)
+                notify(msg)
+                stop.set()
+                return
             if n % 300 == 1:
                 live = sum(1 for s in eng.st["slots"].values() if s["status"] == "open")
                 log(f"alive: equity ${eng.equity:.2f}, {live} trades open, {eng.st['trades']} trades so far")
@@ -1338,10 +1477,10 @@ class FakeNet:
 
     def trades(self, tf, start):
         end = start + {"1h": 3600, "4h": 14400, "1d": 86400}[tf]
-        if self.t < end:
+        if self.t < start:
             return None
         out = []
-        for ts in range(start, end, 10):
+        for ts in range(start, min(end, self.t + 1), 10):
             p = self.script(tf, start, ts)
             out.append((ts, "up", round(p, 3), 500.0))
             out.append((ts, "down", round(1 - p, 3), 500.0))
@@ -1526,6 +1665,39 @@ def selftest():
         assert abs(float(a_["pending_loss"]) - float(b_["pending_loss"])) < 0.02, (a_["start_et"], a_["pending_loss"], b_["pending_loss"])
     assert [r["role"] for r in hB] == [r["role"] for r in h]
     print("backfill check: " + ", ".join(f"{r['start_ke'][-5:]}:{r['result']}/{r['source']}/${r['stake']}" for r in hB))
+    # --- early orders + sleeping: the next candle's orders go in as soon as the hedge before it is complete; the bot then sleeps until 15 min before the next candle
+    print("entry vs open (s) of the live hourly candles: " + ", ".join(f"{r['start_ke'][-5:]}:{r['entry_vs_open_s']}" for r in h))
+    assert int(h[1]["entry_vs_open_s"]) < -1000 and int(h[3]["entry_vs_open_s"]) < -600, [r["entry_vs_open_s"] for r in h]         # right after the hedge before (not 5 min before)
+    assert int(h[4]["entry_vs_open_s"]) < -600 and -330 < int(h[5]["entry_vs_open_s"]) < -250                                        # the 19:00 candle follows a no-fill: the 5-minute rule
+    cfgR = dict(cfg, rest=True, wake=900, early=True)
+    netR = FakeNet(script)
+    spR, cpR = os.path.join(tmp, "sR.json"), os.path.join(tmp, "tR.csv")
+    engR = Engine(cfgR, netR, cal, None, msgs.append, spR, cpR)
+    tr_, sleeps, awake = t0, [], 0
+    while tr_ < t1:
+        netR.t = tr_
+        engR.step(tr_)
+        assert abs(engR.st["cash"] + engR.st["locked"] - engR.equity) < 1e-9 and engR.st["cash"] >= -1e-6
+        w = engR.next_wake(tr_)
+        if w:
+            engR.st["wake_at"], engR.st["last_seen"] = w, tr_
+            engR.save()
+            sleeps.append((tr_, w))
+            assert w - tr_ >= 20 * 60
+            tr_ = w                                                                             # the gate wakes the bot at w: a NEW process reads the saved state
+            engR = Engine(cfgR, netR, cal, json.load(open(spR)), msgs.append, spR, cpR)
+            engR.st["wake_at"] = None
+        else:
+            awake += 1
+            tr_ += 10 if tr_ < et_epoch(date(2026, 11, 10), 13) else 120
+    engR.save()
+    rR = list(csv.DictReader(open(cpR)))
+    hR = [r for r in rR if r["market"] == "1h" and r["stream"] == "news"]
+    assert len(sleeps) >= 2, sleeps
+    assert [r["result"] for r in hR] == [r["result"] for r in h], ([r["result"] for r in hR], [r["result"] for r in h])
+    assert [r["role"] for r in hR] == [r["role"] for r in h]
+    assert {r["market"] for r in rR if r["stream"] == "news"} == {"1h", "4h", "1d"}
+    print(f"sleep check: {len(sleeps)} sleeps, results equal the always-on run: " + ", ".join(r["result"] for r in hR) + f"; final equity ${engR.equity:.2f} vs always-on ${eng.equity:.2f}")
     # --- listener
     seen = []
     pages = {BLS_PAGES["CPI"]: html, BLS_PAGES["PPI"]: html, BLS_PAGES["NFP"]: html, FED_PAGE: fed,

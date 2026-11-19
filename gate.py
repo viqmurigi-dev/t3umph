@@ -1,10 +1,10 @@
 """Decides whether the paper trader needs to be running right now (used by the GitHub Actions workflow).
 Prints  run=true|false  and  secs=<how long to run>  to $GITHUB_OUTPUT (or stdout).  Env: NOW (epoch, for testing), FORCE_MIN (run that many minutes regardless)."""
-import os, sys, time
+import json, os, sys, time
 from datetime import timedelta
 import paper_news as pn
 
-LEAD, LOOK, GAP, CAP = 300, 2400, 1800, int(5.6 * 3600)
+LEAD, LOOK, GAP, CAP = 300, 1200, 1800, int(5.6 * 3600)
 
 
 def windows(now):
@@ -21,7 +21,29 @@ def windows(now):
     return sorted(w)
 
 
+def asleep(now):
+    """the bot went to sleep on purpose and said when to wake (state.wake_at, 15 min before the next candle)"""
+    try:
+        w = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "paper_news_state.json"))).get("wake_at")
+        return bool(w) and now < int(w)
+    except Exception:
+        return False
+
+
+def report_due(now):
+    """the daily PnL / rebate report is cut at 00:00 Nairobi time: if that time has passed and the bot has not written it yet, wake it for a minute or two"""
+    try:
+        w = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "paper_news_state.json"))).get("next_cut")
+        return bool(w) and now >= int(w)
+    except Exception:
+        return False
+
+
 def decide(now):
+    if report_due(now):
+        return True, 240
+    if asleep(now):
+        return False, 0
     ws = windows(now)
     cur = None
     for s, e in ws:
