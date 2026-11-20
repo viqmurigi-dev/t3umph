@@ -30,3 +30,7 @@
 2026-11-20 17:10:29 KE | alive: equity $100.00, 1 trades open, 1 trades so far
 2026-11-20 17:20:29 KE | alive: equity $100.00, 1 trades open, 1 trades so far
 2026-11-20 17:30:29 KE | alive: equity $100.00, 1 trades open, 1 trades so far
+2026-11-20 17:34:39 KE |    #1 DOWN leg sold at 0.55 (55c limit, maker, rebate $0.069) Fri 20 Nov 17:34 Nairobi (09:34 ET)
+2026-11-20 17:34:39 KE | *** #1 DOWN leg sold at 0.55 (maker) Fri 20 Nov 17:34 Nairobi (09:34 ET)
+2026-11-20 17:34:39 KE | *** RESULT #1 1h US open 20 Nov 2026: HEDGED +2.00; equity $102.00
+2026-11-20 17:34:39 KE | CLOSE #1 1h US open 20 Nov 2026: HEDGED +2.00 -> free cash $102.00, equity $102.00
