@@ -1,0 +1,10 @@
+2026-11-20 09:15:12 KE | PAPER TRADER started - NO ORDERS ARE PLACED. capital $100.00, stake 20% of free cash, orders 5 min before each candle, recovery 10x loss on 1h (cap 100%), US open on. Times are Nairobi time first.
+2026-11-20 09:15:12 KE | upcoming: NFP Fri 04 Dec release Fri 04 Dec 16:30 Nairobi (08:30 ET)
+2026-11-20 09:15:12 KE | upcoming: FOMC Wed 09 Dec release Wed 09 Dec 22:00 Nairobi (14:00 ET)
+2026-11-20 09:15:12 KE | upcoming: CPI Thu 10 Dec release Thu 10 Dec 16:30 Nairobi (08:30 ET)
+2026-11-20 09:15:12 KE | upcoming: PPI Tue 15 Dec release Tue 15 Dec 16:30 Nairobi (08:30 ET)
+2026-11-20 09:15:12 KE | alive: equity $100.00, 0 trades open, 0 trades so far
+2026-11-20 09:15:13 KE | *** ALERT calendar: NEW CPI date(s) online, now included: Wed 12 May 2027, Thu 10 Jun 2027, Wed 14 Jul 2027, Wed 11 Aug 2027, Tue 14 Sep 2027, Thu 14 Oct 2027, Wed 10 Nov 2027, Fri 10 Dec 2027
+2026-11-20 09:15:13 KE | *** ALERT calendar: NEW PPI date(s) online, now included: Thu 13 May 2027, Fri 11 Jun 2027, Thu 15 Jul 2027, Tue 10 Aug 2027, Fri 10 Sep 2027, Fri 15 Oct 2027, Fri 12 Nov 2027, Wed 15 Dec 2027
+2026-11-20 09:15:13 KE | *** ALERT calendar: NEW NFP date(s) online, now included: Fri 07 May 2027, Fri 04 Jun 2027, Fri 02 Jul 2027, Fri 06 Aug 2027, Fri 03 Sep 2027, Fri 08 Oct 2027, Fri 05 Nov 2027, Fri 03 Dec 2027
+2026-11-20 09:15:14 KE | *** SLEEP: nothing to watch for a long while; the bot restarts at about Fri 20 Nov 15:20 Nairobi (07:20 ET), 100 min before the next thing it needs to do. Open orders stay in the state; their fills are re-checked from the real trades on waking. Equity $100.00
