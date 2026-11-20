@@ -37,22 +37,22 @@ jobs:
         env:
           NTFY: ${{ secrets.NTFY_TOPIC }}
         run: |
+          timeout -s INT ${{ steps.gate.outputs.secs }} python3 -u paper_news.py run rest=1 ntfy="$NTFY" &
+          bot=$!
+          while kill -0 "$bot" 2>/dev/null; do          # save the account every 3 minutes while the bot runs, so a cancelled or crashed run never loses a trade
+            for i in $(seq 1 18); do kill -0 "$bot" 2>/dev/null || break; sleep 10; done
+            if kill -0 "$bot" 2>/dev/null; then bash save_state.sh || true; fi
+          done
           rc=0
-          timeout -s INT ${{ steps.gate.outputs.secs }} python3 -u paper_news.py run rest=1 ntfy="$NTFY" || rc=$?
+          wait "$bot" || rc=$?
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
 
       - name: Save the account (state, trades, logs)
         if: always() && steps.gate.outputs.run == 'true'
-        run: |
-          git config user.name "paper-trader"
-          git config user.email "paper-trader@users.noreply.github.com"
-          git add -f paper_news_state.json paper_news_trades.csv paper_news_daily.csv paper_news_rebates.csv paper_news_daily.log paper_news_rebates.log paper_news.log calendar_cache.json 2>/dev/null || true
-          git diff --cached --quiet || git commit -m "paper trader state $(date -u +%F_%H:%M)"
-          for i in 1 2 3; do git pull --rebase --autostash -q && git push -q && break; sleep 5; done
+        run: bash save_state.sh
 
       - name: Carry on in a new run when this one hit its time limit
         if: always() && steps.gate.outputs.run == 'true' && steps.bot.outputs.rc == '124' && github.event.inputs.test_minutes == ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run paper.yml --ref "${{ github.ref_name }}"
-
