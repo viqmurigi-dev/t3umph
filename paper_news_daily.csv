@@ -1,0 +1,2 @@
+period_start_ke,period_end_ke,trades_closed,hedged,miss_lose,miss_win,no_fill,trade_pnl_usd,news_pnl_usd,open_pnl_usd,maker_rebate_usd,taker_fees_usd,day_total_usd,equity_usd,free_cash_usd,pending_recovery_usd,open_trades,since_start_pct
+2026-11-20 09:15,2026-11-21 00:00,1,1,0,0,0,2.0,0,2.0,0.1386,0,2.1386,102.0,102.0,0,0,2.0
