@@ -24,3 +24,4 @@
 2026-11-20 16:50:29 KE | alive: equity $100.00, 0 trades open, 0 trades so far
 2026-11-20 16:55:01 KE | ORDERS #1 1h US open 20 Nov 2026 (scheduled) candle Fri 20 Nov 17:00 Nairobi (09:00 ET): SPLIT $20.00 into 20.00 Up + 20.00 Down, SELL limits at 55c on both (299s before the open); stake = 20% of free cash $100.00
 2026-11-20 16:55:01 KE | *** TRADE #1 1h US open 20 Nov 2026 (scheduled): orders in, stake $20.00; candle Fri 20 Nov 17:00 Nairobi (09:00 ET)
+2026-11-20 17:00:29 KE | alive: equity $100.00, 1 trades open, 1 trades so far
