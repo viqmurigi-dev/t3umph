@@ -15,7 +15,8 @@ THE TRADE (the "55c hedge", per candle)
   A candle that follows one with a leg sold but not yet resolved waits for that result (it can turn into a loss that sets the recovery stake), so it is placed a little after the open.
   FEES (Polymarket crypto markets, docs.polymarket.com): a resting limit order that gets filled is a MAKER: no fee, and it earns a rebate = 20% of the fee equivalent
   N x 0.07 x p x (1-p) (about 0.7% of the stake per hedged pair).  If the best bid is already >= 55c when the order is placed it sells at once as a TAKER at that bid and pays 0.07 x p x (1-p) per share, with no rebate.
-  The rebates accrue per fill and are paid once a day (credited to cash when the unpaid balance reaches $1, as Polymarket does); paper_news_rebates.log / .csv report each 24 hours at 00:00 Nairobi time.
+  The rebates accrue per fill and are paid once a day: credited to cash only if the day's total reaches $1 (Polymarket's minimum payout); anything below $1 at the payment period is RESET TO ZERO, not carried over
+  (Polymarket's docs are silent on carry-over; option rebate_carry=1 carries it instead). paper_news_rebates.log / .csv report each 24 hours at 00:00 Nairobi time.
   DAILY PNL UPDATE: at the same 00:00 Nairobi cut the bot logs (and sends to your phone if ntfy is on) the day's trades, PnL, rebate, equity and recovery owed -> paper_news_daily.log / .csv.
 
 MONEY RULES   start $100, stake = 20% of your FREE cash (money not locked in open trades) per candle.  Option base=total: 20% of TOTAL capital instead (money locked in open trades included),
@@ -36,7 +37,7 @@ RUN (leave the window open; PC awake. You can stop with Ctrl+C and restart: it c
   py paper_news.py selftest             offline test with fake markets
   py paper_news.py schedule             the next 45 days of trades in Nairobi time          (days=60 for longer)
   py paper_news.py calendar             refresh the calendar online and show what changed
-  py paper_news.py run                  start paper trading          options: capital=100 stake=0.20 cap=1.00 poll=2 lead=300 minstake=5 base=free|total ntfy=<topic> open=1 recovery=1 rebate=0.20 rebate_hour=0
+  py paper_news.py run                  start paper trading          options: capital=100 stake=0.20 cap=1.00 poll=2 lead=300 minstake=5 base=free|total ntfy=<topic> open=1 recovery=1 rebate=0.20 rebate_hour=0 rebate_carry=0
   py paper_news.py notifytest ntfy=<topic>   send a test message to your phone
   py paper_news.py status               equity, open trades, next trades
   py paper_news.py summary              results + the go / no-go checks  -> paper_news_summary.txt
@@ -90,8 +91,8 @@ CAL_CACHE = os.path.join(HERE, "calendar_cache.json")
 SUMMARY = os.path.join(HERE, "paper_news_summary.txt")
 CSV_HEAD = ["trade", "stream", "event", "market", "slot", "role", "start_ke", "end_ke", "start_et", "entry_ke", "entry_vs_open_s", "cash_before", "equity_before", "pending_loss", "stake",
             "capped", "result", "pnl", "taker_fee", "maker_rebate", "pnl_incl_rebate", "up_sold", "down_sold", "crossed", "size_ok", "result_mid", "pnl_mid", "winner", "equity_after", "source"]
-DAILY_HEAD = ["period_start_ke", "period_end_ke", "trades_closed", "hedged", "miss_lose", "miss_win", "no_fill", "trade_pnl_usd", "news_pnl_usd", "open_pnl_usd", "maker_rebate_usd", "taker_fees_usd", "day_total_usd", "equity_usd", "free_cash_usd", "pending_recovery_usd", "open_trades", "since_start_pct"]
-REBATE_HEAD = ["period_start_ke", "period_end_ke", "maker_fills", "shares_sold_at_55c", "fee_equivalent_usd", "maker_rebate_usd", "cumulative_rebate_usd", "taker_sells", "taker_fees_usd", "paid_out_usd", "unpaid_usd"]
+DAILY_HEAD = ["period_start_ke", "period_end_ke", "trades_closed", "hedged", "miss_lose", "miss_win", "no_fill", "trade_pnl_usd", "news_pnl_usd", "open_pnl_usd", "maker_rebate_usd", "taker_fees_usd", "day_total_usd", "equity_usd", "free_cash_usd", "pending_recovery_usd", "open_trades", "since_start_pct", "rebate_earned_usd", "rebate_forfeited_usd"]
+REBATE_HEAD = ["period_start_ke", "period_end_ke", "maker_fills", "shares_sold_at_55c", "fee_equivalent_usd", "maker_rebate_usd", "cumulative_rebate_usd", "taker_sells", "taker_fees_usd", "paid_out_usd", "unpaid_usd", "forfeited_usd"]
 
 # ------------------------------------------------------------------------------------------------ calendar
 D = lambda s: date.fromisoformat(s)
@@ -137,7 +138,7 @@ def hm_et(ts):
     return f"{datetime.fromtimestamp(ts, UTC).astimezone(ET):%Y-%m-%d %H:%M}"
 
 
-def keep_header(path, head):
+def keep_header(path, head, pad="live"):
     """if a results file written by an older version has other columns, move it aside so the columns never get mixed"""
     try:
         if os.path.exists(path) and os.path.getsize(path) > 0:
@@ -150,7 +151,7 @@ def keep_header(path, head):
                         w = csv.writer(f)
                         w.writerow(head)
                         for r in rows[1:]:
-                            w.writerow(r + ["live"] * (len(head) - len(r)))
+                            w.writerow(r + [pad] * (len(head) - len(r)))
                 else:
                     os.replace(path, path.replace(".csv", f"_old_{int(time.time())}.csv"))
     except Exception:
@@ -519,7 +520,7 @@ class Engine:
         self.state_path, self.csv_path = state_path, csv_path
         c = cfg["capital"]
         self.st = state or {"cash": c, "locked": 0.0, "peak": c, "chains": {}, "slots": {}, "slotmap": {}, "alerts": [], "trades": 0, "start_capital": c}
-        for k, v in (("rebates", []), ("takerfees", []), ("closed", []), ("eq_prev", None), ("rebate_unpaid", 0.0), ("rebate_paid", 0.0), ("next_cut", None), ("period_start", None), ("first_start", None), ("wake_at", None), ("last_seen", None)):
+        for k, v in (("rebates", []), ("takerfees", []), ("closed", []), ("eq_prev", None), ("rebate_unpaid", 0.0), ("rebate_paid", 0.0), ("rebate_lost", 0.0), ("next_cut", None), ("period_start", None), ("first_start", None), ("wake_at", None), ("last_seen", None)):
             self.st.setdefault(k, v)
         d = os.path.dirname(os.path.abspath(csv_path))
         self.reb_csv, self.reb_log = os.path.join(d, "paper_news_rebates.csv"), os.path.join(d, "paper_news_rebates.log")
@@ -1058,32 +1059,37 @@ class Engine:
             tfee = sum(r[5] for r in tks)
             st["rebate_unpaid"] += rb
             paid = 0.0
-            if st["rebate_unpaid"] >= 1.0:                      # Polymarket pays once the accrued rebate reaches $1
+            lost = 0.0
+            if st["rebate_unpaid"] >= 1.0:                      # Polymarket pays once the accrued rebate reaches $1 ...
                 paid = round(st["rebate_unpaid"], 5)
                 st["cash"] += paid
                 st["rebate_paid"] += paid
                 st["rebate_unpaid"] = 0.0
+            elif not self.cfg.get("rebate_carry", False):       # ... and (default, rebate_carry=0) anything below $1 at the payment period is reset to zero, not carried over
+                lost = round(st["rebate_unpaid"], 5)
+                st["rebate_lost"] = st.get("rebate_lost", 0.0) + lost
+                st["rebate_unpaid"] = 0.0
             cum = sum(r[5] for r in st["rebates"] if r[0] < b)
             line = (f"24h to {hm_ke(b)} Nairobi (from {hm_ke(a)}): MAKER REBATE EARNED ${rb:.4f} on {len(rows)} maker fills ({shares:.2f} shares sold at 55c, fee equivalent ${fe:.4f}); "
-                    f"cumulative ${cum:.4f}; paid out ${paid:.2f}, unpaid balance ${st['rebate_unpaid']:.4f}; taker sells {len(tks)} with fees ${tfee:.4f}")
+                    f"cumulative ${cum:.4f}; paid out ${paid:.2f}" + (f", FORFEITED ${lost:.4f} (under the $1 minimum, reset to zero)" if lost > 0 else f", unpaid balance ${st['rebate_unpaid']:.4f}") + f"; taker sells {len(tks)} with fees ${tfee:.4f}")
             self.log("REBATE REPORT " + line)
             try:
                 open(self.reb_log, "a", encoding="utf-8").write(f"{datetime.now(KE):%Y-%m-%d %H:%M:%S} KE | {line}\n")
-                keep_header(self.reb_csv, REBATE_HEAD)
+                keep_header(self.reb_csv, REBATE_HEAD, "0")
                 new = not os.path.exists(self.reb_csv)
                 with open(self.reb_csv, "a", newline="", encoding="utf-8") as f:
                     w = csv.writer(f)
                     if new:
                         w.writerow(REBATE_HEAD)
-                    w.writerow([hm_ke(a), hm_ke(b), len(rows), round(shares, 2), round(fe, 5), round(rb, 5), round(cum, 5), len(tks), round(tfee, 5), round(paid, 5), round(st["rebate_unpaid"], 5)])
+                    w.writerow([hm_ke(a), hm_ke(b), len(rows), round(shares, 2), round(fe, 5), round(rb, 5), round(cum, 5), len(tks), round(tfee, 5), round(paid, 5), round(st["rebate_unpaid"], 5), round(lost, 5)])
             except Exception as e:
                 self.log(f"could not write the rebate report: {e}")
-            self.daily_report(a, b, rb, tfee)
+            self.daily_report(a, b, rb, tfee, paid, lost)
             st["period_start"] = b
             st["next_cut"] = self.next_cut_after(b)
             self.dirty = True
 
-    def daily_report(self, a, b, rb, tfee):
+    def daily_report(self, a, b, rb, tfee, paid=None, lost=0.0):
         """the 24-hour PnL update (same cut as the rebate report): trades closed in the period, PnL, rebate, fees, equity"""
         st = self.st
         cl = [c for c in st["closed"] if a <= c[0] < b]
@@ -1095,23 +1101,24 @@ class Engine:
         start = st.get("start_capital", 100.0)
         pend = sum(v["pend"] for v in st["chains"].values() if v["pend"] > 0)
         nopen = sum(1 for sl in st["slots"].values() if sl["status"] == "open")
-        total = pnl + rb
+        paid = rb if paid is None else paid          # only the rebate actually credited to cash is in the day total / equity
+        total = pnl + paid
         bf = [c for c in cl if len(c) > 6 and c[6]]
         bfs = f" [{len(bf)} of them back-filled from the real trades while the bot was off: PnL {sum(c[5] for c in bf):+.2f}]" if bf else ""
         line = (f"DAILY PNL, 24h to {hm_ke(b)} Nairobi: {len(cl)} trades closed ({cnt('hedged')} hedged, {cnt('miss_lose')} lost leg, {cnt('miss_win')} one leg + win, {cnt('no_fill')} no fill){bfs}; "
-                f"trade PnL {pnl:+.2f} (news {news:+.2f}, US open {opn:+.2f}; taker fees {tfee:.2f} already deducted) + maker rebate {rb:+.2f} = day total {total:+.2f}. "
+                f"trade PnL {pnl:+.2f} (news {news:+.2f}, US open {opn:+.2f}; taker fees {tfee:.2f} already deducted) + maker rebate credited {paid:+.2f} (earned {rb:.2f}" + (f", forfeited {lost:.2f}: under the $1 minimum" if lost > 0 else "") + f") = day total {total:+.2f}. "
                 f"Equity ${eq:.2f} (free cash ${st['cash']:.2f}, in {nopen} open trades ${st['locked']:.2f}), {(eq / start - 1) * 100:+.1f}% since start; recovery owed ${pend:.2f}")
         self.log("*** " + line)
         try:
             open(self.day_log, "a", encoding="utf-8").write(f"{datetime.now(KE):%Y-%m-%d %H:%M:%S} KE | {line}\n")
-            keep_header(self.day_csv, DAILY_HEAD)
+            keep_header(self.day_csv, DAILY_HEAD, "0")
             new = not os.path.exists(self.day_csv)
             with open(self.day_csv, "a", newline="", encoding="utf-8") as f:
                 w = csv.writer(f)
                 if new:
                     w.writerow(DAILY_HEAD)
-                w.writerow([hm_ke(a), hm_ke(b), len(cl), cnt("hedged"), cnt("miss_lose"), cnt("miss_win"), cnt("no_fill"), round(pnl, 4), round(news, 4), round(opn, 4), round(rb, 4),
-                            round(tfee, 4), round(total, 4), round(eq, 4), round(st["cash"], 4), round(pend, 4), nopen, round((eq / start - 1) * 100, 2)])
+                w.writerow([hm_ke(a), hm_ke(b), len(cl), cnt("hedged"), cnt("miss_lose"), cnt("miss_win"), cnt("no_fill"), round(pnl, 4), round(news, 4), round(opn, 4), round(paid, 4),
+                            round(tfee, 4), round(total, 4), round(eq, 4), round(st["cash"], 4), round(pend, 4), nopen, round((eq / start - 1) * 100, 2), round(rb, 4), round(lost, 4)])
         except Exception as e:
             self.log(f"could not write the daily report: {e}")
         if self.notify:
@@ -1243,7 +1250,7 @@ def cfg_from(args):
             "poll": float(args.get("poll", 2)), "recwait": int(args.get("recwait", 180)), "maxlate": int(args.get("maxlate", 300)),
             "minstake": float(args.get("minstake", 5)), "open_on": args.get("open", "1") != "0", "recovery": args.get("recovery", "1") != "0",
             "ntfy": args.get("ntfy", ""), "recov_tfs": tuple(x for x in args.get("recov_tfs", "1h").split(",") if x),
-            "lead": int(args.get("lead", 300)), "base": "total" if args.get("base", "free") == "total" else "free", "rebate": float(args.get("rebate", 0.20)), "rebate_hour": int(args.get("rebate_hour", 0)),
+            "lead": int(args.get("lead", 300)), "base": "total" if args.get("base", "free") == "total" else "free", "rebate": float(args.get("rebate", 0.20)), "rebate_hour": int(args.get("rebate_hour", 0)), "rebate_carry": args.get("rebate_carry", "0") == "1",
             "backfill": args.get("backfill", "1") != "0", "tradealerts": args.get("tradealerts", "1") != "0", "early": args.get("early", "1") != "0", "rest": args.get("rest", "0") == "1", "wake": int(args.get("wake", 6000)), "bf_days": int(args.get("bf_days", 5)), "bf_delay": int(args.get("bf_delay", 150))}
 
 
@@ -1403,7 +1410,7 @@ def cmd_status(args):
     print(f"Equity ${eq:.2f} (FREE cash ${st['cash']:.2f}, in open trades ${st['locked']:.2f})   start ${st.get('start_capital', 100):.0f}   trades {st['trades']}")
     rb = sum(r[5] for r in st.get("rebates", []))
     tf = sum(r[5] for r in st.get("takerfees", []))
-    print(f"Maker rebate earned so far ${rb:.4f} (paid out ${st.get('rebate_paid', 0):.2f}, unpaid ${st.get('rebate_unpaid', 0):.4f} + today's not yet reported); taker fees paid ${tf:.4f}")
+    print(f"Maker rebate earned so far ${rb:.4f} (credited to cash ${st.get('rebate_paid', 0):.2f}, forfeited under the $1 minimum ${st.get('rebate_lost', 0):.4f}, unpaid today so far ${st.get('rebate_unpaid', 0):.4f} + today's not yet reported); taker fees paid ${tf:.4f}")
     if st.get("next_cut"):
         print(f"Next 24h rebate report: {stamp(st['next_cut'])}")
     now = int(time.time())
@@ -1469,7 +1476,7 @@ def summarize(rows):
     crossed = sum(1 for r in rows if r.get("crossed") == "1")
     pnl_all = sum(float(r["pnl"]) for r in rows)
     L.append(f"FEES: trade PnL ${pnl_all:+.2f} already includes taker fees (${tfee:.2f} on {crossed} trades whose sell went through the book at once). "
-             f"Maker rebate (20% of the fee equivalent, paid daily): ${rb:+.2f}  ->  PnL including rebate ${pnl_all + rb:+.2f}")
+             f"Maker rebate EARNED (20% of the fee equivalent; only credited to equity on a day it reaches $1, otherwise forfeited): ${rb:+.2f}  ->  PnL if every rebate counted ${pnl_all + rb:+.2f}")
     L.append("")
     L.append("GO / NO-GO (agreed rules; the release hours need ~60 trades, about 3 months):")
     for nm, f in (("news hourly (release hours)", lambda r: r["stream"] == "news" and r["market"] == "1h" and r["role"] == "scheduled"), ("US open 09:00", lambda r: r["stream"] == "open")):
@@ -1614,6 +1621,26 @@ def selftest():
         # invariants
         assert abs(eng.st["cash"] + eng.st["locked"] - eng.equity) < 1e-9 and eng.st["cash"] >= -1e-6
         assert abs(sum(sl["pos"]["stake"] for sl in eng.st["slots"].values() if sl["status"] == "open") - eng.st["locked"]) < 1e-6
+    # rebate reset rule: below $1 at the payment period -> reset to zero (default); at or above $1 -> credited to cash; rebate_carry=1 carries it over
+    for carry, expect in ((False, (0.0, 0.14, 0.0)), (True, (0.0, 0.0, 0.14))):
+        cfgR = dict(cfg, rebate_carry=carry)
+        dR = tempfile.mkdtemp(dir=tmp)
+        eR = Engine(cfgR, FakeNet(script), cal, None, lambda m: None, os.path.join(dR, "s.json"), os.path.join(dR, "t.csv"))
+        nowR = et_epoch(date(2026, 11, 12), 12, 0)
+        eR.st["next_cut"], eR.st["period_start"] = nowR - 100, nowR - 86500
+        eR.st["rebates"].append([nowR - 5000, 1, "up", 20.0, 0.1, 0.14])
+        cash0 = eR.st["cash"]
+        eR.rebate_report(nowR)
+        got = (round(eR.st["cash"] - cash0, 5), round(eR.st.get("rebate_lost", 0.0), 5), round(eR.st["rebate_unpaid"], 5))
+        assert got == expect, (carry, got, expect)
+    dR = tempfile.mkdtemp(dir=tmp)
+    eR = Engine(dict(cfg, rebate_carry=False), FakeNet(script), cal, None, lambda m: None, os.path.join(dR, "s.json"), os.path.join(dR, "t.csv"))
+    eR.st["next_cut"], eR.st["period_start"] = nowR - 100, nowR - 86500
+    eR.st["rebates"] += [[nowR - 5000, k, "up", 20.0, 0.1, 0.14] for k in range(8)]       # 8 x 0.14 = 1.12 -> credited
+    cash0 = eR.st["cash"]
+    eR.rebate_report(nowR)
+    assert abs(eR.st["cash"] - cash0 - 1.12) < 1e-6 and eR.st.get("rebate_lost", 0.0) == 0.0 and eR.st["rebate_unpaid"] == 0.0
+    print("rebate rule check: $0.14 day -> forfeited (carry=1 keeps it); $1.12 day -> credited to cash")
     rows = list(csv.DictReader(open(cp)))
     h = [r for r in rows if r["market"] == "1h" and r["stream"] == "news"]
     fl = lambda r, k: float(r[k])
