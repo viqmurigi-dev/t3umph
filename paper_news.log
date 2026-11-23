@@ -117,3 +117,17 @@
 2026-11-22 00:03:40 KE | *** ALERT calendar: NEW PPI date(s) online, now included: Thu 13 May 2027, Fri 11 Jun 2027, Thu 15 Jul 2027, Tue 10 Aug 2027, Fri 10 Sep 2027, Fri 15 Oct 2027, Fri 12 Nov 2027, Wed 15 Dec 2027
 2026-11-22 00:03:40 KE | *** ALERT calendar: NEW NFP date(s) online, now included: Fri 07 May 2027, Fri 04 Jun 2027, Fri 02 Jul 2027, Fri 06 Aug 2027, Fri 03 Sep 2027, Fri 08 Oct 2027, Fri 05 Nov 2027, Fri 03 Dec 2027
 2026-11-22 00:03:41 KE | *** SLEEP: nothing to watch for a long while; the bot restarts at about Mon 23 Nov 15:20 Nairobi (07:20 ET), 100 min before the next thing it needs to do. Open orders stay in the state; their fills are re-checked from the real trades on waking. Equity $102.00
+2026-11-23 04:09:47 KE | resumed from /home/runner/work/t3umph/t3umph/paper_news_state.json: equity $102.00
+2026-11-23 04:09:47 KE | PAPER TRADER started - NO ORDERS ARE PLACED. capital $102.00, stake 20% of free cash, orders 5 min before each candle, recovery 10x loss on 1h (cap 100%), US open on. Times are Nairobi time first.
+2026-11-23 04:09:47 KE | upcoming: NFP Fri 04 Dec release Fri 04 Dec 16:30 Nairobi (08:30 ET)
+2026-11-23 04:09:47 KE | upcoming: FOMC Wed 09 Dec release Wed 09 Dec 22:00 Nairobi (14:00 ET)
+2026-11-23 04:09:47 KE | upcoming: CPI Thu 10 Dec release Thu 10 Dec 16:30 Nairobi (08:30 ET)
+2026-11-23 04:09:47 KE | upcoming: PPI Tue 15 Dec release Tue 15 Dec 16:30 Nairobi (08:30 ET)
+2026-11-23 04:09:47 KE | REBATE REPORT 24h to 2026-11-23 00:00 Nairobi (from 2026-11-22 00:00): MAKER REBATE EARNED $0.0000 on 0 maker fills (0.00 shares sold at 55c, fee equivalent $0.0000); cumulative $0.1386; paid out $0.00, unpaid balance $0.1386; taker sells 0 with fees $0.0000
+2026-11-23 04:09:47 KE | *** DAILY PNL, 24h to 2026-11-23 00:00 Nairobi: 0 trades closed (0 hedged, 0 lost leg, 0 one leg + win, 0 no fill); trade PnL +0.00 (news +0.00, US open +0.00; taker fees 0.00 already deducted) + maker rebate +0.00 = day total +0.00. Equity $102.00 (free cash $102.00, in 0 open trades $0.00), +2.0% since start; recovery owed $0.00
+2026-11-23 04:09:47 KE | *** DAILY PNL, 24h to 2026-11-23 00:00 Nairobi: 0 trades closed (0 hedged, 0 lost leg, 0 one leg + win, 0 no fill); trade PnL +0.00 (news +0.00, US open +0.00; taker fees 0.00 already deducted) + maker rebate +0.00 = day total +0.00. Equity $102.00 (free cash $102.00, in 0 open trades $0.00), +2.0% since start; recovery owed $0.00
+2026-11-23 04:09:47 KE | alive: equity $102.00, 0 trades open, 1 trades so far
+2026-11-23 04:09:48 KE | *** ALERT calendar: NEW CPI date(s) online, now included: Wed 12 May 2027, Thu 10 Jun 2027, Wed 14 Jul 2027, Wed 11 Aug 2027, Tue 14 Sep 2027, Thu 14 Oct 2027, Wed 10 Nov 2027, Fri 10 Dec 2027
+2026-11-23 04:09:48 KE | *** ALERT calendar: NEW PPI date(s) online, now included: Thu 13 May 2027, Fri 11 Jun 2027, Thu 15 Jul 2027, Tue 10 Aug 2027, Fri 10 Sep 2027, Fri 15 Oct 2027, Fri 12 Nov 2027, Wed 15 Dec 2027
+2026-11-23 04:09:48 KE | *** ALERT calendar: NEW NFP date(s) online, now included: Fri 07 May 2027, Fri 04 Jun 2027, Fri 02 Jul 2027, Fri 06 Aug 2027, Fri 03 Sep 2027, Fri 08 Oct 2027, Fri 05 Nov 2027, Fri 03 Dec 2027
+2026-11-23 04:09:49 KE | *** SLEEP: nothing to watch for a long while; the bot restarts at about Mon 23 Nov 15:20 Nairobi (07:20 ET), 100 min before the next thing it needs to do. Open orders stay in the state; their fills are re-checked from the real trades on waking. Equity $102.00
