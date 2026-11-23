@@ -141,3 +141,5 @@
 2026-11-23 16:51:30 KE | *** ALERT calendar: NEW CPI date(s) online, now included: Wed 12 May 2027, Thu 10 Jun 2027, Wed 14 Jul 2027, Wed 11 Aug 2027, Tue 14 Sep 2027, Thu 14 Oct 2027, Wed 10 Nov 2027, Fri 10 Dec 2027
 2026-11-23 16:51:30 KE | *** ALERT calendar: NEW PPI date(s) online, now included: Thu 13 May 2027, Fri 11 Jun 2027, Thu 15 Jul 2027, Tue 10 Aug 2027, Fri 10 Sep 2027, Fri 15 Oct 2027, Fri 12 Nov 2027, Wed 15 Dec 2027
 2026-11-23 16:51:30 KE | *** ALERT calendar: NEW NFP date(s) online, now included: Fri 07 May 2027, Fri 04 Jun 2027, Fri 02 Jul 2027, Fri 06 Aug 2027, Fri 03 Sep 2027, Fri 08 Oct 2027, Fri 05 Nov 2027, Fri 03 Dec 2027
+2026-11-23 16:55:00 KE | ORDERS #2 1h US open 23 Nov 2026 (scheduled) candle Mon 23 Nov 17:00 Nairobi (09:00 ET): SPLIT $20.40 into 20.40 Up + 20.40 Down, SELL limits at 55c on both (300s before the open); stake = 20% of free cash $102.00
+2026-11-23 16:55:00 KE | *** TRADE #2 1h US open 23 Nov 2026 (scheduled): orders in, stake $20.40; candle Mon 23 Nov 17:00 Nairobi (09:00 ET)
