@@ -181,3 +181,6 @@
 2026-11-24 17:31:43 KE | alive: equity $104.04, 1 trades open, 3 trades so far
 2026-11-24 17:41:44 KE | alive: equity $104.04, 1 trades open, 3 trades so far
 2026-11-24 17:51:52 KE | alive: equity $104.04, 1 trades open, 3 trades so far
+2026-11-24 18:01:41 KE | *** RESULT #3 1h US open 24 Nov 2026: MISS_LOSE -9.36; equity $94.68
+2026-11-24 18:01:41 KE | CLOSE #3 1h US open 24 Nov 2026: MISS_LOSE -9.36 -> free cash $94.68, equity $94.68
+2026-11-24 18:01:41 KE | *** SLEEP: nothing to watch for a long while; the bot restarts at about Wed 25 Nov 15:20 Nairobi (07:20 ET), 100 min before the next thing it needs to do. Open orders stay in the state; their fills are re-checked from the real trades on waking. Equity $94.68
