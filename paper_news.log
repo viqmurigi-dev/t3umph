@@ -184,3 +184,14 @@
 2026-11-24 18:01:41 KE | *** RESULT #3 1h US open 24 Nov 2026: MISS_LOSE -9.36; equity $94.68
 2026-11-24 18:01:41 KE | CLOSE #3 1h US open 24 Nov 2026: MISS_LOSE -9.36 -> free cash $94.68, equity $94.68
 2026-11-24 18:01:41 KE | *** SLEEP: nothing to watch for a long while; the bot restarts at about Wed 25 Nov 15:20 Nairobi (07:20 ET), 100 min before the next thing it needs to do. Open orders stay in the state; their fills are re-checked from the real trades on waking. Equity $94.68
+2026-11-25 03:33:47 KE | resumed from /home/runner/work/t3umph/t3umph/paper_news_state.json: equity $94.68
+2026-11-25 03:33:47 KE | PAPER TRADER started - NO ORDERS ARE PLACED. capital $94.68, stake 20% of free cash, orders 5 min before each candle, recovery 10x loss on 1h (cap 100%), US open on. Times are Nairobi time first.
+2026-11-25 03:33:47 KE | upcoming: NFP Fri 04 Dec release Fri 04 Dec 16:30 Nairobi (08:30 ET)
+2026-11-25 03:33:47 KE | upcoming: FOMC Wed 09 Dec release Wed 09 Dec 22:00 Nairobi (14:00 ET)
+2026-11-25 03:33:47 KE | upcoming: CPI Thu 10 Dec release Thu 10 Dec 16:30 Nairobi (08:30 ET)
+2026-11-25 03:33:47 KE | upcoming: PPI Tue 15 Dec release Tue 15 Dec 16:30 Nairobi (08:30 ET)
+2026-11-25 03:33:47 KE | REBATE REPORT 24h to 2026-11-25 00:00 Nairobi (from 2026-11-24 00:00): MAKER REBATE EARNED $0.0721 on 1 maker fills (20.80 shares sold at 55c, fee equivalent $0.3604); cumulative $0.3520; paid out $0.00, FORFEITED $0.0721 (under the $1 minimum, reset to zero); taker sells 0 with fees $0.0000
+2026-11-25 03:33:47 KE | *** DAILY PNL, 24h to 2026-11-25 00:00 Nairobi: 1 trades closed (0 hedged, 1 lost leg, 0 one leg + win, 0 no fill); trade PnL -9.36 (news +0.00, US open -9.36; taker fees 0.00 already deducted) + maker rebate credited +0.00 (earned 0.07, forfeited 0.07: under the $1 minimum) = day total -9.36. Equity $94.68 (free cash $94.68, in 0 open trades $0.00), -5.3% since start; recovery owed $0.00
+2026-11-25 03:33:47 KE | *** DAILY PNL, 24h to 2026-11-25 00:00 Nairobi: 1 trades closed (0 hedged, 1 lost leg, 0 one leg + win, 0 no fill); trade PnL -9.36 (news +0.00, US open -9.36; taker fees 0.00 already deducted) + maker rebate credited +0.00 (earned 0.07, forfeited 0.07: under the $1 minimum) = day total -9.36. Equity $94.68 (free cash $94.68, in 0 open trades $0.00), -5.3% since start; recovery owed $0.00
+2026-11-25 03:33:47 KE | alive: equity $94.68, 0 trades open, 3 trades so far
+2026-11-25 03:33:49 KE | *** SLEEP: nothing to watch for a long while; the bot restarts at about Wed 25 Nov 15:20 Nairobi (07:20 ET), 100 min before the next thing it needs to do. Open orders stay in the state; their fills are re-checked from the real trades on waking. Equity $94.68
