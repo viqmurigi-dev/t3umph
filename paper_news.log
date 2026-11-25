@@ -213,3 +213,8 @@
 2026-11-25 17:09:17 KE | alive: equity $94.68, 1 trades open, 4 trades so far
 2026-11-25 17:19:17 KE | alive: equity $94.68, 1 trades open, 4 trades so far
 2026-11-25 17:29:17 KE | alive: equity $94.68, 1 trades open, 4 trades so far
+2026-11-25 17:31:53 KE |    #4 DOWN leg sold at 0.55 (55c limit, maker, rebate $0.066) Wed 25 Nov 17:31 Nairobi (09:31 ET)
+2026-11-25 17:31:53 KE | *** #4 DOWN leg sold at 0.55 (maker) Wed 25 Nov 17:31 Nairobi (09:31 ET)
+2026-11-25 17:31:53 KE | *** RESULT #4 1h US open 25 Nov 2026: HEDGED +1.89; equity $96.57
+2026-11-25 17:31:53 KE | CLOSE #4 1h US open 25 Nov 2026: HEDGED +1.89 -> free cash $96.57, equity $96.57
+2026-11-25 17:31:53 KE | *** SLEEP: nothing to watch for a long while; the bot restarts at about Fri 27 Nov 15:20 Nairobi (07:20 ET), 100 min before the next thing it needs to do. Open orders stay in the state; their fills are re-checked from the real trades on waking. Equity $96.57
