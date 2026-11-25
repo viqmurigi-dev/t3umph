@@ -207,3 +207,4 @@
 2026-11-25 16:49:18 KE | *** ALERT calendar: NEW NFP date(s) online, now included: Fri 07 May 2027, Fri 04 Jun 2027, Fri 02 Jul 2027, Fri 06 Aug 2027, Fri 03 Sep 2027, Fri 08 Oct 2027, Fri 05 Nov 2027, Fri 03 Dec 2027
 2026-11-25 16:55:01 KE | ORDERS #4 1h US open 25 Nov 2026 (scheduled) candle Wed 25 Nov 17:00 Nairobi (09:00 ET): SPLIT $18.93 into 18.93 Up + 18.93 Down, SELL limits at 55c on both (299s before the open); stake = 20% of free cash $94.68
 2026-11-25 16:55:01 KE | *** TRADE #4 1h US open 25 Nov 2026 (scheduled): orders in, stake $18.93; candle Wed 25 Nov 17:00 Nairobi (09:00 ET)
+2026-11-25 16:59:17 KE | alive: equity $94.68, 1 trades open, 4 trades so far
