@@ -305,3 +305,4 @@
 2026-11-28 05:40:15 KE | *** DAILY PNL, 24h to 2026-11-28 00:00 Nairobi: 1 trades closed (0 hedged, 1 lost leg, 0 one leg + win, 0 no fill); trade PnL -8.69 (news +0.00, US open -8.69; taker fees 0.00 already deducted) + maker rebate credited +0.00 (earned 0.07, forfeited 0.07: under the $1 minimum) = day total -8.69. Equity $87.88 (free cash $87.88, in 0 open trades $0.00), -12.1% since start; recovery owed $0.00
 2026-11-28 05:40:15 KE | alive: equity $87.88, 0 trades open, 5 trades so far
 2026-11-28 05:50:16 KE | alive: equity $87.88, 0 trades open, 5 trades so far
+2026-11-28 06:00:16 KE | alive: equity $87.88, 0 trades open, 5 trades so far
