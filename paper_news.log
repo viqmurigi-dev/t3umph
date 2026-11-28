@@ -317,3 +317,4 @@
 2026-11-28 07:30:16 KE | alive: equity $87.88, 0 trades open, 5 trades so far
 2026-11-28 07:40:16 KE | alive: equity $87.88, 0 trades open, 5 trades so far
 2026-11-28 07:50:16 KE | alive: equity $87.88, 0 trades open, 5 trades so far
+2026-11-28 08:00:00 KE | *** SLEEP: nothing to watch for a long while; the bot restarts at about Mon 30 Nov 15:20 Nairobi (07:20 ET), 100 min before the next thing it needs to do. Open orders stay in the state; their fills are re-checked from the real trades on waking. Equity $87.88
