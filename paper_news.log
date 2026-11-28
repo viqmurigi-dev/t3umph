@@ -294,3 +294,13 @@
 2026-11-27 22:21:52 KE | alive: equity $87.88, 0 trades open, 5 trades so far
 2026-11-27 22:31:52 KE | alive: equity $87.88, 0 trades open, 5 trades so far
 2026-11-27 22:41:52 KE | alive: equity $87.88, 0 trades open, 5 trades so far
+2026-11-28 05:40:15 KE | resumed from /home/runner/work/t3umph/t3umph/paper_news_state.json: equity $87.88
+2026-11-28 05:40:15 KE | PAPER TRADER started - NO ORDERS ARE PLACED. capital $87.88, stake 20% of free cash, orders 5 min before each candle, recovery 10x loss on 1h (cap 100%), US open on. Times are Nairobi time first.
+2026-11-28 05:40:15 KE | upcoming: NFP Fri 04 Dec release Fri 04 Dec 16:30 Nairobi (08:30 ET)
+2026-11-28 05:40:15 KE | upcoming: FOMC Wed 09 Dec release Wed 09 Dec 22:00 Nairobi (14:00 ET)
+2026-11-28 05:40:15 KE | upcoming: CPI Thu 10 Dec release Thu 10 Dec 16:30 Nairobi (08:30 ET)
+2026-11-28 05:40:15 KE | upcoming: PPI Tue 15 Dec release Tue 15 Dec 16:30 Nairobi (08:30 ET)
+2026-11-28 05:40:15 KE | REBATE REPORT 24h to 2026-11-28 00:00 Nairobi (from 2026-11-27 00:00): MAKER REBATE EARNED $0.0669 on 1 maker fills (19.31 shares sold at 55c, fee equivalent $0.3346); cumulative $0.5501; paid out $0.00, FORFEITED $0.0669 (under the $1 minimum, reset to zero); taker sells 0 with fees $0.0000
+2026-11-28 05:40:15 KE | *** DAILY PNL, 24h to 2026-11-28 00:00 Nairobi: 1 trades closed (0 hedged, 1 lost leg, 0 one leg + win, 0 no fill); trade PnL -8.69 (news +0.00, US open -8.69; taker fees 0.00 already deducted) + maker rebate credited +0.00 (earned 0.07, forfeited 0.07: under the $1 minimum) = day total -8.69. Equity $87.88 (free cash $87.88, in 0 open trades $0.00), -12.1% since start; recovery owed $0.00
+2026-11-28 05:40:15 KE | *** DAILY PNL, 24h to 2026-11-28 00:00 Nairobi: 1 trades closed (0 hedged, 1 lost leg, 0 one leg + win, 0 no fill); trade PnL -8.69 (news +0.00, US open -8.69; taker fees 0.00 already deducted) + maker rebate credited +0.00 (earned 0.07, forfeited 0.07: under the $1 minimum) = day total -8.69. Equity $87.88 (free cash $87.88, in 0 open trades $0.00), -12.1% since start; recovery owed $0.00
+2026-11-28 05:40:15 KE | alive: equity $87.88, 0 trades open, 5 trades so far
